@@ -1,0 +1,66 @@
+﻿<Window x:Class="RFID_WorkStation.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RFID_WorkStation"
+        mc:Ignorable="d"       
+        Height="1080" Width="1920" 
+        Topmost="False" 
+        ResizeMode="NoResize" 
+        Title="RFID WorkStation"
+        WindowStartupLocation="CenterScreen" 
+        WindowState="Maximized">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="350"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 左侧导航菜单 -->
+        <ListBox x:Name="NavigationMenu" 
+             Grid.Column="0"
+             Grid.Row="0"
+             SelectionChanged="NavigationMenu_SelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Height="100"  Orientation="Horizontal" HorizontalAlignment="Center" Margin="5"  IsEnabled="{Binding IsEnabled}">
+                        <Image Source="{Binding Icon}" Width="64" Height="64" Margin="20,0,10,0"/>
+                        <TextBlock Text="{Binding Title}"  FontSize="28" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- 右侧内容区域 - 现在分为上下两部分 -->
+        <Grid Grid.Column="1" Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="200"/>
+            </Grid.RowDefinitions>
+
+            <!-- 上部内容区域 (保持原功能) -->
+            <Frame x:Name="ContentFrame" 
+                   Grid.Row="0"
+                   Margin="10"
+                   NavigationUIVisibility="Hidden"/>
+
+            <!-- 下部控制台输出区域 -->
+            <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="0" Margin="10">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBox x:Name="ConsoleOutput" 
+                             IsReadOnly="True" 
+                             TextWrapping="Wrap" 
+                             FontFamily="Consolas"
+                             FontSize="14"
+                             Background="#f3f3f3"    
+                             BorderThickness="0"/>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
