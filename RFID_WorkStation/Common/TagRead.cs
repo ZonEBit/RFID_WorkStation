@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Markup;
 
 namespace RFID_WorkStation.Common
 {
@@ -22,6 +24,7 @@ namespace RFID_WorkStation.Common
         public const int USB = 1;
         public const int NET = 2;
         public static bool isConnect = false;
+        public static List<byte[]> uidList = new List<byte[]>();
 
         [DllImport("PC_RFID2.DLL", CallingConvention = CallingConvention.StdCall)]
         public static extern bool PC_RFIDopenCOM(string comNum, uint baudRate = 38400, byte byteSize = 8, byte parityBit = 2, byte stopBit = 0);//打开串口
@@ -298,90 +301,41 @@ namespace RFID_WorkStation.Common
                 break;
             }
             return true;
+        }   
+
+        public static bool connectByUsb()
+        {
+            if (PC_RFIDopenUSB())//使用默认参数VID:0xFFFE,PID:0x0091
+            {
+                Console.WriteLine("\n打开USB【VID:0xFFFE,PID:0x0091】成功");
+                PC_NETInit();//初始化网络
+                isConnect = true;
+                return true;
+            }
+            else
+            {
+                Console.WriteLine("USB接口未连接设备或被占用");
+                isConnect = false;              
+                return false;
+            }
         }
 
-
-        //执行常用命令
-        public static void runCmd()
+        public static bool disConnect()
+        {
+            if (isConnect) {
+                if (PC_RFIDclose() && PC_NETExit()) {
+                    isConnect = false;
+                    return true;
+                }
+                return false;
+            }
+            return false;        
+        }
+   
+        public static void readBlock(byte[] UID) 
         {
             RFData rf = new RFData();
-
-            byte[] data = new byte[256];
-            byte[] UID = new byte[8];      
-            bool isUploadAntNum = false;//上传天线编号
-            List<TagInfo> tag_list = new List<TagInfo>();
-
-            Console.WriteLine("开始执行检测命令\n");
-
-            //打开设备命令
-            if (PC_OpenDevice(ref rf))
-            {
-                log_sendrecvData(rf);
-                Console.WriteLine("打开设备成功\n");
-            }
-            else
-            {
-                Console.WriteLine("打开设备失败");
-                return;
-            }
-
-            //获取设备信息命令
-            if (PC_GetDeviceInfoVersion(ref rf))
-            {
-                log_sendrecvData(rf);
-                Console.WriteLine("获取设备信息成功\n");
-            }
-            else
-            {
-                Console.WriteLine("获取设备信息失败");
-                return;
-            }
-                   
-            //打开射频命令
-            if (PC_Open_CloseRFPower(ref rf, (byte)1))
-            {
-                log_sendrecvData(rf);
-                Console.WriteLine("打开射频成功\n");
-            }
-            else
-            {
-                Console.WriteLine("打开射频失败");
-                return;
-            }
-
-            //关闭射频命令
-            if (PC_Open_CloseRFPower(ref rf, (byte)0))
-            {
-                log_sendrecvData(rf);
-                Console.WriteLine("关闭射频成功\n");
-            }
-            else
-            {
-                Console.WriteLine("关闭射频失败");
-                return;
-            }
-           
-            //盘点命令
-            if (ScanTab(0, isUploadAntNum, tag_list))
-            {
-                Console.WriteLine("盘点成功");
-                Console.WriteLine("标签数量{0}\n", tag_list.Count);
-                if (tag_list.Count == 0)
-                {
-                    Console.WriteLine("检测完成！");
-                    return;
-                }
-                //记录第一个标签的UID，读写卡命令用到
-                for (int i = 0; i < 8; i++)
-                {
-                    UID[i] = tag_list[0].UID[i];
-                }
-            }
-            else
-            {
-                Console.WriteLine("盘点失败");
-                return;
-            }
+            byte[] data = new byte[256];        
 
             //打开天线口命令，读写标签之前要打开标签所在的天线口
             if (PC_OpenAnt_One(ref rf, (byte)1))
@@ -394,20 +348,27 @@ namespace RFID_WorkStation.Common
                 Console.WriteLine("打开天线口1失败");
                 return;
             }
-                          
+
             //读多个数据块命令
-            if (PC_ReadCardMultBlock(ref rf, UID, (byte)1, (byte)0, (byte)3))
+            if (PC_ReadCardMultBlock(ref rf, UID, (byte)1, (byte)0, (byte)8))
             {
                 log_sendrecvData(rf);
                 if (rf.recvData[5] == 0)
                 {
-                    //记录数据块
-                    for (int k = 0; k < 4; k++)
+                    // 读取8个块(0-7)                  
+                    for (int block = 0; block < 8; block++)
                     {
-                        data[k] = rf.recvData[k + 17];
-                        data[k + 4] = rf.recvData[k + 17 + 5];
-                        data[k + 8] = rf.recvData[k + 17 + 10];
+                        // 每个块占5字节(1字节块号+4字节数据)，从第17字节开始
+                        int startIndex = 17 + (block * 5);
+                        for (int k = 0; k < 4; k++)
+                        {
+                            data[(block * 4) + k] = rf.recvData[startIndex + k];
+                        }
                     }
+
+                    string dataStr = BitConverter.ToString(data).Replace("-", "");
+                    Console.WriteLine($"{dataStr} ");
+
                     if (PC_GetCommType() != NET)
                     {
                         //非UDP传输方式，还有一个结束包
@@ -418,79 +379,164 @@ namespace RFID_WorkStation.Common
                         }
                         else
                         {
-                            Console.WriteLine("读数据块0~2失败");
+                            Console.WriteLine("读数据块0~7失败");
                             return;
                         }
                     }
-                    Console.WriteLine("读数据块0~2成功\n");
+                    Console.WriteLine("读数据块0~7成功\n");
 
                 }
                 else
                 {
-                    Console.WriteLine("读数据块0~2失败");
+                    Console.WriteLine("读数据块0~7失败");
                     return;
                 }
             }
             else
             {
-                Console.WriteLine("读数据块0~2失败");
+                Console.WriteLine("读数据块0~7失败");
+                return;
+            }
+        }
+
+        public static void writeOneBlock(byte[] UID) 
+        {
+            RFData rf = new RFData();
+            byte[] data = new byte[256];
+
+            //打开天线口命令，读写标签之前要打开标签所在的天线口
+            if (PC_OpenAnt_One(ref rf, (byte)1))
+            {
+                log_sendrecvData(rf);
+                Console.WriteLine("打开天线口1成功\n");
+            }
+            else
+            {
+                Console.WriteLine("打开天线口1失败");
                 return;
             }
 
-            //写多个数据块命令
-            if (PC_WriteCardMultBlock(ref rf, UID, (byte)1, (byte)0, (byte)3, data))
+           
+            //写单个数据块命令
+            if (PC_WriteCardOneBlock(ref rf, UID, (byte)1, (byte)2, data))
             {
                 log_sendrecvData(rf);
                 if (rf.recvData[5] == 0)
                 {
-                    Console.WriteLine("写数据块0~2成功\n");
+                    Console.WriteLine("写数据块2成功\n");
                 }
                 else
                 {
-                    Console.WriteLine("写数据块0~2失败");
+                    Console.WriteLine("写数据块2失败");
                     return;
                 }
             }
             else
             {
-                Console.WriteLine("写数据块0~2失败");
+                Console.WriteLine("写数据块2失败");
                 return;
-            }                           
+            }
+
         }
 
-        public static bool connectByUsb()
+        public static bool WriteMultiBlocksDynamic(byte[] UID, string barcode, byte startBlock = 2, int maxBlocks = 16)
         {
-            if (PC_RFIDopenUSB())//使用默认参数VID:0xFFFE,PID:0x0091
+            // 1. 数据准备阶段
+            byte[] asciiBytes = Encoding.ASCII.GetBytes(barcode);
+            int totalBytes = asciiBytes.Length;
+
+            // 计算需要的块数量(每个块4字节)
+            int blocksNeeded = (int)Math.Ceiling(totalBytes / 4.0);
+            blocksNeeded = Math.Min(blocksNeeded, maxBlocks); // 不超过最大限制
+
+            Console.WriteLine($"准备写入 {blocksNeeded} 个块 (从块{startBlock}开始)");
+
+            // 2. 准备完整写入数据(补全到4的倍数)
+            byte[] writeData = new byte[blocksNeeded * 4];
+            Array.Copy(asciiBytes, writeData, Math.Min(asciiBytes.Length, writeData.Length));
+
+            // 3. 执行多块写入命令
+            RFData rf = new RFData();
+            if (PC_WriteCardMultBlock(ref rf, UID, (byte)1, startBlock, (byte)blocksNeeded, writeData))
             {
-                Console.WriteLine("\n打开USB【VID:0xFFFE,PID:0x0091】成功");
-                isConnect = true;
-                return true;
+                log_sendrecvData(rf);
+                if (rf.recvData[5] == 0)
+                {
+                    Console.WriteLine($"成功写入块{startBlock}~{startBlock + blocksNeeded - 1}");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine("写入失败: 卡片返回错误状态");
+                    return false;
+                }
             }
             else
             {
-                Console.WriteLine("USB接口未连接设备或被占用");
-                isConnect = false;              
+                Console.WriteLine("写入失败: 通信错误");
                 return false;
             }
         }
 
-        public static void disConnect()
+        public static bool readTag()
         {
-            if(isConnect)
-                PC_RFIDclose();//关闭当前通信接口
-        }
+            if (isConnect) // 使用默认参数VID:0xFFFE,PID:0x0091
+            {            
+                bool isUploadAntNum = false; // 上传天线编号
+                List<TagInfo> tag_list = new List<TagInfo>();
+                uidList.Clear(); // 清空
 
-        public static void readTag() {
-            PC_NETInit();//初始化网络
-            if (isConnect)//使用默认参数VID:0xFFFE,PID:0x0091
-            {              
-                //打开USB成功，执行命令
-                runCmd();
+                // 盘点命令
+                if (ScanTab(0, isUploadAntNum, tag_list))
+                {
+
+                    Console.WriteLine("盘点成功");
+                    Console.WriteLine("标签数量: {0}\n", tag_list.Count);
+
+                    if (tag_list.Count == 0)
+                    {
+                        Console.WriteLine("检测完成！");
+                        return false;
+                    }
+
+                    // 所有标签的UID
+                    foreach (TagInfo tag in tag_list)
+                    {
+                        byte[] uidCopy = new byte[8];
+                        Array.Copy(tag.UID, uidCopy, 8);
+                        uidList.Add(uidCopy);
+                    }
+
+                    // 打印所有UID
+                    Console.WriteLine("标签UID:");
+                    for (int i = 0; i < uidList.Count; i++)
+                    {
+                        string uidStr = BitConverter.ToString(uidList[i]).Replace("-", "");
+                        Console.WriteLine($"{uidStr} ");                      
+                    }
+
+                    return true;
+
+                }
+                else
+                {
+                    Console.WriteLine("盘点失败");
+                    return false;
+                }
             }
             else
             {
                 Console.WriteLine("USB接口未连接设备或被占用");
+                return false;
             }
+        }
+
+        public static bool handleTag(byte[] UID,string barcode) 
+        {        
+            if(WriteMultiBlocksDynamic(UID, barcode))
+                return true; 
+            else
+            { return false; }
         }
     }
 }

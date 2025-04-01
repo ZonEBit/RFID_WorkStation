@@ -5,30 +5,74 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:RFID_WorkStation.Pages"
       mc:Ignorable="d" 
-      d:DesignHeight="1080" d:DesignWidth="1570"
+      d:DesignHeight="730" d:DesignWidth="1570"
       Background="#f3f3f3"
       Title="ConnectPage">
 
     <Grid HorizontalAlignment="Left" Margin="100">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <!-- 文本标签列 -->
+            <ColumnDefinition Width="Auto"/>
+            <!-- ComboBox列 -->
+            <ColumnDefinition Width="Auto"/>
+            <!-- 按钮列 -->
+        </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center">
-            <TextBlock Text="连接方式：" FontSize="30" FontWeight="Bold"/>
-            <ComboBox x:Name="ReadMode" Width="100" Margin="5">
-                <ComboBoxItem Content="USB"/>
+        <!-- 第一列：右对齐的文本标签 -->
+        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+            <TextBlock Text="通信接口：" 
+                       FontSize="25"                      
+                       HorizontalAlignment="Right"
+                       Margin="0,0,0,20"/>
+
+            <TextBlock Text="PID：" 
+                       FontSize="25" 
+                       Margin="0,10,0,0"
+                       HorizontalAlignment="Right"/>
+        </StackPanel>
+
+        <!-- 第二列：左对齐的ComboBox -->
+        <StackPanel Grid.Column="1">
+            <ComboBox x:Name="CommunicationInterface" 
+                      Width="200" 
+                      Height="40" 
+                      FontSize="20"                    
+                      Margin="0,0,0,20"
+                      SelectionChanged="CommunicationInterface_SelectionChanged">
+                <ComboBoxItem Content="USB" IsSelected="True"/>
+                <ComboBoxItem Content="串口"/>
+                <ComboBoxItem Content="网络"/>
+            </ComboBox>
+
+            <ComboBox x:Name="PidSelection" 
+                      Width="200" 
+                      Height="40" 
+                      FontSize="20"
+                      SelectionChanged="PidSelection_SelectionChanged">
+                <ComboBoxItem Content="0x0091" IsSelected="True"/>
+                <ComboBoxItem Content="0x0092"/>
             </ComboBox>
         </StackPanel>
 
-        <Button Grid.Row="1"
-                Width="200"
-                Height="80"               
-                Content="连接"
-                HorizontalAlignment="Center"
-                Click="Connect_Click"
-                />
+        <!-- 第三列：按钮 -->
+        <StackPanel Grid.Column="2" 
+                    Margin="50,50,0,0" 
+                    VerticalAlignment="Top">
+            <Button x:Name="OpenButton" 
+                    Width="150"
+                    Height="60"               
+                    Content="打开"
+                    FontSize="20"
+                    Margin="0,0,0,20"
+                    Click="Open_Click"/>
 
+            <Button x:Name="CloseButton" 
+                    Width="150"
+                    Height="60"               
+                    Content="关闭"
+                    FontSize="20"
+                    Click="Close_Click"/>
+        </StackPanel>
     </Grid>
 </Page>

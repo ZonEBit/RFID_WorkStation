@@ -40,13 +40,13 @@
         <Grid Grid.Column="1" Grid.Row="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="200"/>
+                <RowDefinition Height="350"/>
             </Grid.RowDefinitions>
 
             <!-- 上部内容区域 (保持原功能) -->
             <Frame x:Name="ContentFrame" 
                    Grid.Row="0"
-                   Margin="10"
+                   Margin="10,0"
                    NavigationUIVisibility="Hidden"/>
 
             <!-- 下部控制台输出区域 -->

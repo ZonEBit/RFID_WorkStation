@@ -36,29 +36,32 @@ namespace RFID_WorkStation
             menuItems = new List<MenuItem>
             {
                 new MenuItem { Title = "连接", Icon = "/Images/connect.png", PageType = typeof(Pages.ConnectPage), IsEnabled = true },
-                new MenuItem { Title = "配置", Icon = "/Images/config.png", PageType = typeof(Pages.ConfigPage), IsEnabled = true },
-                new MenuItem { Title = "加工", Icon = "/Images/process.png", PageType = typeof(Pages.ProcessPage), IsEnabled = true }
+                new MenuItem { Title = "配置", Icon = "/Images/config.png", PageType = typeof(Pages.ConfigPage), IsEnabled = false },
+                new MenuItem { Title = "加工", Icon = "/Images/process.png", PageType = typeof(Pages.ProcessPage), IsEnabled = false }
             };
 
             NavigationMenu.ItemsSource = menuItems;
             NavigationMenu.SelectedIndex = 0;
         }
 
-        private void OnConfigReload(object sender, EventArgs e)
-        {
-            EnableAllMenuItems();
-        }
-
-        public void EnableAllMenuItems()
+        public void UpdateMenuItemsEnabledState(bool isConnected)
         {
             foreach (var menuItem in menuItems)
             {
-                menuItem.IsEnabled = true;
+                // 连接页面始终可用
+                if (menuItem.PageType == typeof(Pages.ConnectPage))
+                {
+                    menuItem.IsEnabled = true;
+                }
+                // 其他页面根据连接状态启用/禁用
+                else
+                { 
+                    menuItem.IsEnabled = isConnected;
+                }
             }
 
-            NavigationMenu.ItemsSource = null;
-            NavigationMenu.ItemsSource = menuItems;
-            NavigationMenu.SelectedIndex = 0;
+            // 刷新菜单项显示
+            NavigationMenu.Items.Refresh();
         }
 
         private void NavigationMenu_SelectionChanged(object sender, SelectionChangedEventArgs e)
